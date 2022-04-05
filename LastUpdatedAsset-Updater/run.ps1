@@ -108,6 +108,10 @@ if (!$LastUpdatedPage -or !$LastUpdatedPage.data) {
     exit 1
 }
 
+if (($LastUpdatedPage.data | Measure-Object).Count -gt 1) {
+    $LastUpdatedPage.data = $LastUpdatedPage.data | Sort-Object -Property {$_.attributes.'created-at'} | Select-Object -First 1
+}
+
 # Construct the ITG update
 $FlexAssetBody = 
 @{
