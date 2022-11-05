@@ -136,6 +136,8 @@ $FlexAssetBody =
             "device-locations-monitoring-disabled" = $LastUpdatedPage.data.attributes.traits."device-locations-monitoring-disabled"
             "monthly-stats-rollup" = $LastUpdatedPage.data.attributes.traits."monthly-stats-rollup"
             "monthly-stats-rollup-monitoring-disabled" = $LastUpdatedPage.data.attributes.traits."monthly-stats-rollup-monitoring-disabled"
+            "device-users" = $LastUpdatedPage.data.attributes.traits."device-users"
+            "device-users-monitoring-disabled" = $LastUpdatedPage.data.attributes.traits."device-users-monitoring-disabled"
             "billing-update-da" = $LastUpdatedPage.data.attributes.traits."billing-update-da"
             "billing-update-da-monitoring-disabled" = $LastUpdatedPage.data.attributes.traits."billing-update-da-monitoring-disabled"
 
