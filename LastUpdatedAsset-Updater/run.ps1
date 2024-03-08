@@ -32,14 +32,52 @@ if ($Request.Body.apiurl -in $PrimaryITGAPIs) {
         Headers = $Headers
         ContentType = "application/json"
     }
+    $FromDeviceAudit_STS_Scripts = $false
+    if ($Request.body.HelloWorld -and $Request.body.HelloWorld -eq "success") {
+        $FromDeviceAudit_STS_Scripts = $true
+    }
+
+
     try {
         $OrgDetails = Invoke-RestMethod @Params 
     } catch {
-        ImmediateFailure "$($_.Exception.Response.StatusCode.value__) - API token does not match or IP not found in allowed list."
+        if ($_.Exception.Response.StatusCode.value__ -eq 504) {
+            Start-Sleep -Seconds 5
+            # Try a 2nd time if the api call timed out
+            try {
+                $OrgDetails = Invoke-RestMethod @Params 
+            } catch {
+                $Err = "$($_.Exception.Response.StatusCode.value__) - API token does not match or there was an API error for Org $($Request.body.itgOrgID). (using url $($request.body.apiurl) and key $($request.headers.'x-api-key')) (description: $($_.Exception.Response.StatusDescription)) 1"
+                if ($_.ErrorDetails.Message){
+                    $Err += "(Inner Error: $_.ErrorDetails.Message)"
+                }
+                if ($FromDeviceAudit_STS_Scripts) {
+                    $Err += " - FROM DeviceAudit-Automated on STS-Scripts"
+                }
+
+                $ClientIP = ($request.headers.'X-Forwarded-For' -split ':')[0]
+                Write-Information ("Client IP: {0}" -f $ClientIP)
+                ImmediateFailure $Err
+            }
+        } else {
+            $Err = "$($_.Exception.Response.StatusCode.value__) - API token does not match or there was an API error for Org $($Request.body.itgOrgID). (using url $($request.body.apiurl) and key $($request.headers.'x-api-key')) (description: $($_.Exception.Response.StatusDescription)) 1.5"
+            if ($_.ErrorDetails.Message){
+                $Err += "(Inner Error: $_.ErrorDetails.Message)"
+            }
+            if ($FromDeviceAudit_STS_Scripts) {
+                $Err += " - FROM DeviceAudit-Automated on STS-Scripts"
+            }
+
+            $ClientIP = ($request.headers.'X-Forwarded-For' -split ':')[0]
+            Write-Information ("Client IP: {0}" -f $ClientIP)
+            ImmediateFailure $Err
+        }
     }
     
     if (!$OrgDetails -or !$OrgDetails.data) {
-        ImmediateFailure "401 - API token does not match or IP not found in allowed list."
+        $ClientIP = ($request.headers.'X-Forwarded-For' -split ':')[0]
+        Write-Information ("Client IP: {0}" -f $ClientIP)
+        ImmediateFailure "401 - API token does not match or there was an API error for Org $($Request.body.itgOrgID). (using url $($request.body.apiurl) and key $($request.headers.'x-api-key')) 2"
     }
     $APIKey = $request.headers.'x-api-key'
 } else {
@@ -62,11 +100,15 @@ if ($Request.Body.apiurl -in $PrimaryITGAPIs) {
     try {
         $PermCheckResult = Invoke-RestMethod @Params 
     } catch {
-        ImmediateFailure "$($_.Exception.Response.StatusCode.value__) - API token does not match or IP not found in allowed list."
+        $ClientIP = ($request.headers.'X-Forwarded-For' -split ':')[0]
+        Write-Information ("Client IP: {0}" -f $ClientIP)
+        ImmediateFailure "$($_.Exception.Response.StatusCode.value__) - API token does not match or IP not found in allowed list for Org $($Request.body.itgOrgID). (using url $($request.body.apiurl) and key $($request.headers.'x-api-key')) 3"
     }
 
     if ($PermCheckResult -ne "success") {
-        ImmediateFailure "401 - API token does not match or IP not found in allowed list."
+        $ClientIP = ($request.headers.'X-Forwarded-For' -split ':')[0]
+        Write-Information ("Client IP: {0}" -f $ClientIP)
+        ImmediateFailure "401 - API token does not match or IP not found in allowed list for Org $($Request.body.itgOrgID). (using url $($request.body.apiurl) and key $($request.headers.'x-api-key')) 4"
     }
     $APIKey = $Env:ITG_API_Forwarder_APIKey
 }
@@ -81,6 +123,8 @@ if (!$APIURL) {
     ImmediateFailure "401 - An API URL is required. Set 'apiurl' in the request body."
 }
 if (!$APIKey) {
+    $ClientIP = ($request.headers.'X-Forwarded-For' -split ':')[0]
+    Write-Information ("Client IP: {0}" -f $ClientIP)
     ImmediateFailure "401 - An API Key is required. Set 'x-api-key' in the request headers."
 }
 if (!$OrgID) {
