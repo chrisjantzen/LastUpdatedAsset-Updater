@@ -144,6 +144,10 @@ Set-Variable -Name "ITGlue_JSON_Conversion_Depth" -Value 100 -Scope global -Forc
 
 # Get the existing asset (if exists)
 $LastUpdatedPage = Get-ITGlueFlexibleAssets -filter_flexible_asset_type_id $ENV:SCRIPTS_LAST_RUN_ASSET_TYPE_ID -filter_organization_id $OrgID
+if ($LastUpdatedPage -and $LastUpdatedPage.data) {
+    $LastUpdatedPage.data = $LastUpdatedPage.data | Where-Object { !$_.attributes.archived }
+}
+
 if (!$LastUpdatedPage -or !$LastUpdatedPage.data) {
     # If no existing asset, just exit and throw a warning
     Write-Warning "404 - No existing asset to update. Create a new asset and then try the update again."
