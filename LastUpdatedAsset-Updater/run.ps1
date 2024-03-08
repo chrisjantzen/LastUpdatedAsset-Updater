@@ -135,6 +135,9 @@ if ($APIURL -notin $APIURLWhitelist) {
 }
 
 # Configure ITG API
+if (!(Get-Command 'Add-ITGlueBaseURI' -errorAction SilentlyContinue)) {
+    Import-Module ITGlueAPI
+}
 Add-ITGlueBaseURI -base_uri $APIURL
 Add-ITGlueAPIKey $APIKey
 Set-Variable -Name "ITGlue_JSON_Conversion_Depth" -Value 100 -Scope global -Force
