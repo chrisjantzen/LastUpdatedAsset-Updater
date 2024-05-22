@@ -246,9 +246,27 @@ if ($Request.Body.HostDevice) {
     $FlexAssetBody.attributes.traits.Remove($_.Name) 
 }
 
-Set-ITGlueFlexibleAssets -id $LastUpdatedPage.data.id -data $FlexAssetBody
 $SuccessMsg = "Updated the 'Scripts - Last Run' page for org $($OrgID). Updated: " +  ($UpdatedParams -join ", ")
-Write-Verbose $SuccessMsg
+try {
+    $Response = Set-ITGlueFlexibleAssets -id $LastUpdatedPage.data.id -data $FlexAssetBody -ErrorVariable UpdateErr
+    if (!$Response.Error) {
+        Write-Verbose $SuccessMsg
+    }
+} catch {
+    Write-Error "Could not update LastUpdated page."
+    Write-Error $UpdateErr
+}
+if ($Response -and $Response.Error) {
+    # Error, try again
+    Start-Sleep -Seconds 2
+    $Response = Set-ITGlueFlexibleAssets -id $LastUpdatedPage.data.id -data $FlexAssetBody
+    if (!$Response.Error) {
+        Write-Verbose $SuccessMsg
+    } else {
+        Write-Error "Could not update LastUpdated page."
+        Write-Error $Response.Error
+    }
+}
 
 # Associate values to output bindings by calling 'Push-OutputBinding'.
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
