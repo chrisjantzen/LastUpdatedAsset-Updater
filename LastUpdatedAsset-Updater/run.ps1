@@ -22,6 +22,7 @@ $PrimaryITGAPIs = $ENV:ITG_PRIMARY_API_URLS -split ", "
 # Verify the sender has permission to access this resource (check IP and API key)
 if ($Request.Body.apiurl -in $PrimaryITGAPIs) {
     # Using the main ITG API, just grab a random piece of data and ensure the API key works
+    Write-Information ("Using the main ITG API")
     $Headers = @{
         "x-api-key" = $request.headers.'x-api-key'
     }
@@ -78,10 +79,13 @@ if ($Request.Body.apiurl -in $PrimaryITGAPIs) {
         $ClientIP = ($request.headers.'X-Forwarded-For' -split ':')[0]
         Write-Information ("Client IP: {0}" -f $ClientIP)
         ImmediateFailure "401 - API token does not match or there was an API error for Org $($Request.body.itgOrgID). (using url $($request.body.apiurl) and key $($request.headers.'x-api-key')) 2"
+    } else {
+        Write-Information "Updating Last Updated info for: $($OrgDetails.data[0].attributes.name)"
     }
     $APIKey = $request.headers.'x-api-key'
 } else {
     # Using the API forwarder, use custom check
+    Write-Information ("Using the ITG API Forwarder")
     $Headers = @{
         "x-api-key" = $request.headers.'x-api-key'
         "Originating-IP" = ($request.headers.'X-Forwarded-For' -split ':')[0]
@@ -117,7 +121,7 @@ if ($Request.Body.apiurl -in $PrimaryITGAPIs) {
 $APIURL = $request.body.apiurl
 $OrgID = $Request.body.itgOrgID
 
-Write-Verbose "Running for org $OrgID"
+Write-Information "Running for org $OrgID"
 
 if (!$APIURL) {
     ImmediateFailure "401 - An API URL is required. Set 'apiurl' in the request body."
@@ -253,7 +257,7 @@ try {
         Write-Verbose $SuccessMsg
     }
 } catch {
-    Write-Error "Could not update LastUpdated page."
+    Write-Error "Could not update LastUpdated page for org $OrgID, from $($Request.Body.HostDevice). Keys to update: $($Request.Body.Keys -join ", ")"
     Write-Error $UpdateErr
 }
 if ($Response -and $Response.Error) {
@@ -263,7 +267,7 @@ if ($Response -and $Response.Error) {
     if (!$Response.Error) {
         Write-Verbose $SuccessMsg
     } else {
-        Write-Error "Could not update LastUpdated page."
+        Write-Error "Could not update LastUpdated page for org $OrgID, from $($Request.Body.HostDevice). Keys to update: $($Request.Body.Keys -join ", ")"
         Write-Error $Response.Error
     }
 }
