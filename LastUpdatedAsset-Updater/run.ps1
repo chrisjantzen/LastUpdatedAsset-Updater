@@ -19,8 +19,11 @@ Function ImmediateFailure ($Message) {
 $APIURLWhitelist = $ENV:ITGAPIURL_WHITELIST -split ", "
 $PrimaryITGAPIs = $ENV:ITG_PRIMARY_API_URLS -split ", "
 
+# In Powershell 7.4 the $Request.Body comes through as case-sensitive ordered hashtable. This converts it to make it not case-sensitive.
+$ConvertedRequestBody = [HashTable]::New($Request.Body, [StringComparer]::OrdinalIgnoreCase)
+
 # Verify the sender has permission to access this resource (check IP and API key)
-if ($Request.Body.apiurl -in $PrimaryITGAPIs) {
+if ($ConvertedRequestBody.apiurl -in $PrimaryITGAPIs) {
     # Using the main ITG API, just grab a random piece of data and ensure the API key works
     Write-Information ("Using the main ITG API")
     $Headers = @{
@@ -29,12 +32,12 @@ if ($Request.Body.apiurl -in $PrimaryITGAPIs) {
 
     $Params = @{
         Method = "Get"
-        Uri = $request.body.apiurl + "/organizations/" + $Request.body.itgOrgID
+        Uri = $ConvertedRequestBody.apiurl + "/organizations/" + $ConvertedRequestBody.itgOrgID
         Headers = $Headers
         ContentType = "application/json"
     }
     $FromDeviceAudit_STS_Scripts = $false
-    if ($Request.body.HelloWorld -and $Request.body.HelloWorld -eq "success") {
+    if ($ConvertedRequestBody.HelloWorld -and $ConvertedRequestBody.HelloWorld -eq "success") {
         $FromDeviceAudit_STS_Scripts = $true
     }
 
@@ -48,7 +51,7 @@ if ($Request.Body.apiurl -in $PrimaryITGAPIs) {
             try {
                 $OrgDetails = Invoke-RestMethod @Params 
             } catch {
-                $Err = "$($_.Exception.Response.StatusCode.value__) - API token does not match or there was an API error for Org $($Request.body.itgOrgID). (using url $($request.body.apiurl) and key $($request.headers.'x-api-key')) (description: $($_.Exception.Response.StatusDescription)) 1"
+                $Err = "$($_.Exception.Response.StatusCode.value__) - API token does not match or there was an API error for Org $($ConvertedRequestBody.itgOrgID). (using url $($ConvertedRequestBody.apiurl) and key $($request.headers.'x-api-key')) (description: $($_.Exception.Response.StatusDescription)) 1"
                 if ($_.ErrorDetails.Message){
                     $Err += "(Inner Error: $_.ErrorDetails.Message)"
                 }
@@ -61,7 +64,7 @@ if ($Request.Body.apiurl -in $PrimaryITGAPIs) {
                 ImmediateFailure $Err
             }
         } else {
-            $Err = "$($_.Exception.Response.StatusCode.value__) - API token does not match or there was an API error for Org $($Request.body.itgOrgID). (using url $($request.body.apiurl) and key $($request.headers.'x-api-key')) (description: $($_.Exception.Response.StatusDescription)) 1.5"
+            $Err = "$($_.Exception.Response.StatusCode.value__) - API token does not match or there was an API error for Org $($ConvertedRequestBody.itgOrgID). (using url $($ConvertedRequestBody.apiurl) and key $($request.headers.'x-api-key')) (description: $($_.Exception.Response.StatusDescription)) 1.5"
             if ($_.ErrorDetails.Message){
                 $Err += "(Inner Error: $_.ErrorDetails.Message)"
             }
@@ -78,7 +81,7 @@ if ($Request.Body.apiurl -in $PrimaryITGAPIs) {
     if (!$OrgDetails -or !$OrgDetails.data) {
         $ClientIP = ($request.headers.'X-Forwarded-For' -split ':')[0]
         Write-Information ("Client IP: {0}" -f $ClientIP)
-        ImmediateFailure "401 - API token does not match or there was an API error for Org $($Request.body.itgOrgID). (using url $($request.body.apiurl) and key $($request.headers.'x-api-key')) 2"
+        ImmediateFailure "401 - API token does not match or there was an API error for Org $($ConvertedRequestBody.itgOrgID). (using url $($ConvertedRequestBody.apiurl) and key $($request.headers.'x-api-key')) 2"
     } else {
         Write-Information "Updating Last Updated info for: $($OrgDetails.data[0].attributes.name)"
     }
@@ -96,7 +99,7 @@ if ($Request.Body.apiurl -in $PrimaryITGAPIs) {
 
     $Params = @{
         Method = "Post"
-        Uri = $request.body.apiurl
+        Uri = $ConvertedRequestBody.apiurl
         Headers = $Headers
         Body = ($Body | ConvertTo-Json)
         ContentType = "application/json"
@@ -106,20 +109,20 @@ if ($Request.Body.apiurl -in $PrimaryITGAPIs) {
     } catch {
         $ClientIP = ($request.headers.'X-Forwarded-For' -split ':')[0]
         Write-Information ("Client IP: {0}" -f $ClientIP)
-        ImmediateFailure "$($_.Exception.Response.StatusCode.value__) - API token does not match or IP not found in allowed list for Org $($Request.body.itgOrgID). (using url $($request.body.apiurl) and key $($request.headers.'x-api-key')) 3"
+        ImmediateFailure "$($_.Exception.Response.StatusCode.value__) - API token does not match or IP not found in allowed list for Org $($ConvertedRequestBody.itgOrgID). (using url $($ConvertedRequestBody.apiurl) and key $($request.headers.'x-api-key')) 3"
     }
 
     if ($PermCheckResult -ne "success") {
         $ClientIP = ($request.headers.'X-Forwarded-For' -split ':')[0]
         Write-Information ("Client IP: {0}" -f $ClientIP)
-        ImmediateFailure "401 - API token does not match or IP not found in allowed list for Org $($Request.body.itgOrgID). (using url $($request.body.apiurl) and key $($request.headers.'x-api-key')) 4"
+        ImmediateFailure "401 - API token does not match or IP not found in allowed list for Org $($ConvertedRequestBody.itgOrgID). (using url $($ConvertedRequestBody.apiurl) and key $($request.headers.'x-api-key')) 4"
     }
     $APIKey = $Env:ITG_API_Forwarder_APIKey
 }
 
 # Get the API key, URL, and ITG ORG ID to send this request to
-$APIURL = $request.body.apiurl
-$OrgID = $Request.body.itgOrgID
+$APIURL = $ConvertedRequestBody.apiurl
+$OrgID = $ConvertedRequestBody.itgOrgID
 
 Write-Information "Running for org $OrgID"
 
@@ -228,18 +231,18 @@ $FlexAssetBody =
 }
 
 $UpdatedParams = @()
-foreach ($BodyParam in $Request.Body.Keys) {
+foreach ($BodyParam in $ConvertedRequestBody.Keys) {
     if ($BodyParam -in $FlexAssetBody.attributes.traits.Keys) {
-        $FlexAssetBody.attributes.traits[$BodyParam] = $Request.body[$BodyParam]
+        $FlexAssetBody.attributes.traits[$BodyParam] = $ConvertedRequestBody[$BodyParam]
         $UpdatedParams += $BodyParam
     }
 }
 
-if ($Request.Body.HostDevice) {
+if ($ConvertedRequestBody.HostDevice) {
     $OldDevices = ($LastUpdatedPage.data.attributes.traits."devices-running-autodoc" -replace '<[^>]+>','').Trim() -split ", "
-    if ($OldDevices -notcontains $Request.Body.HostDevice) {
+    if ($OldDevices -notcontains $ConvertedRequestBody.HostDevice) {
         $NewDevices = $OldDevices
-        $NewDevices += $Request.Body.HostDevice
+        $NewDevices += $ConvertedRequestBody.HostDevice
         $NewDevices = $NewDevices | Where-Object { $_ } # filter out empty
         $FlexAssetBody.attributes.traits["devices-running-autodoc"] = $NewDevices -join ", "
     }
@@ -257,7 +260,7 @@ try {
         Write-Verbose $SuccessMsg
     }
 } catch {
-    Write-Error "Could not update LastUpdated page for org $OrgID, from $($Request.Body.HostDevice). Keys to update: $($Request.Body.Keys -join ", ")"
+    Write-Error "Could not update LastUpdated page for org $OrgID, from $($ConvertedRequestBody.HostDevice). Keys to update: $($ConvertedRequestBody.Keys -join ", ")"
     Write-Error $UpdateErr
 }
 if ($Response -and $Response.Error) {
@@ -267,7 +270,7 @@ if ($Response -and $Response.Error) {
     if (!$Response.Error) {
         Write-Verbose $SuccessMsg
     } else {
-        Write-Error "Could not update LastUpdated page for org $OrgID, from $($Request.Body.HostDevice). Keys to update: $($Request.Body.Keys -join ", ")"
+        Write-Error "Could not update LastUpdated page for org $OrgID, from $($ConvertedRequestBody.HostDevice). Keys to update: $($ConvertedRequestBody.Keys -join ", ")"
         Write-Error $Response.Error
     }
 }

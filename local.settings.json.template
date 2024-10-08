@@ -2,7 +2,7 @@
   "IsEncrypted": false,
   "Values": {
     "AzureWebJobsStorage": "",
-    "FUNCTIONS_WORKER_RUNTIME_VERSION": "~7",
+    "FUNCTIONS_WORKER_RUNTIME_VERSION": "7.4",
     "FUNCTIONS_WORKER_RUNTIME": "powershell",
 
     "ITGAPIURL_WHITELIST": "https://api.itglue.com, https://api.eu.itglue.com, https://api.au.itglue.com, API_FORWARDER_URL_HERE",
